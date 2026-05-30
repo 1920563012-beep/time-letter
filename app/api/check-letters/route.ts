@@ -74,7 +74,7 @@ export async function GET() {
         </p>
 
         <p>
-          <a href="http://localhost:3000/letters/${letter.id}">
+          <a href="https://time-letter-rho.vercel.app/letters/${letter.id}">
             点击查看这封信
           </a>
         </p>
