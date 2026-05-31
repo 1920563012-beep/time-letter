@@ -58,30 +58,83 @@ export async function GET() {
       to: [userData.user.email],
       subject: "未来已来：你有一封来自过去的信",
       html: `
-        <h1>📩 未来已来</h1>
+        <div style="
+          max-width:600px;
+          margin:0 auto;
+          padding:40px 20px;
+          font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+          background:#ffffff;
+          color:#333;
+        ">
+          <div style="text-align:center;">
+            <h1 style="
+              margin-bottom:10px;
+              color:#111827;
+              font-size:32px;
+            ">
+              📩 未来已来
+            </h1>
 
-        <p>你有一封来自过去的信件，今天已经可以开启。</p>
+            <p style="
+              color:#6b7280;
+              font-size:16px;
+              margin-bottom:30px;
+            ">
+              一封来自过去的信，已经抵达今天。
+            </p>
+          </div>
 
-        ${imageHtml}
+          ${imageHtml}
 
-        <p>
-          <strong>信件标题：</strong>
-          ${letter.title}
-        </p>
+          <div style="
+            background:#f8fafc;
+            padding:20px;
+            border-radius:12px;
+            margin:24px 0;
+          ">
+            <p style="margin:0;color:#6b7280;">
+              信件标题
+            </p>
 
-        <p>
-          打开时光信箱，查看过去的自己写给今天的你：
-        </p>
+            <h2 style="
+              margin-top:10px;
+              color:#111827;
+            ">
+              ${letter.title}
+            </h2>
+          </div>
 
-        <p>
-          <a href="https://time-letter-rho.vercel.app/letters/${letter.id}">
-            点击查看这封信
-          </a>
-        </p>
+          <div style="text-align:center;margin:35px 0;">
+            <a
+              href="https://time-letter-rho.vercel.app/letters/${letter.id}"
+              style="
+                background:#111827;
+                color:white;
+                text-decoration:none;
+                padding:14px 28px;
+                border-radius:10px;
+                display:inline-block;
+                font-weight:600;
+              "
+            >
+              打开这封信
+            </a>
+          </div>
 
-        <hr />
+          <hr style="
+            border:none;
+            border-top:1px solid #e5e7eb;
+            margin:30px 0;
+          ">
 
-        <p>—— 时光信箱</p>
+          <p style="
+            text-align:center;
+            color:#9ca3af;
+            font-size:14px;
+          ">
+            时光信箱 · 写给未来的自己
+          </p>
+        </div>
       `,
     });
 
