@@ -1,101 +1,38 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { supabase } from "../lib/supabase";
 
-export default function Home() {
-  const [email, setEmail] = useState("");
-
-  useEffect(() => {
-    async function checkUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        setEmail(user.email || "");
-      }
-    }
-
-    checkUser();
-  }, []);
-
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    setEmail("");
-  }
-
+export default function HomePage() {
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        background: "#f5f5f5",
-      }}
-    >
-      <h1 style={{ fontSize: "48px" }}>信箱</h1>
+    <main className="min-h-screen bg-[#FAF8F3] text-[#2F3432] flex flex-col items-center justify-center px-6">
+      <Image
+        src="/logo/leaf.svg"
+        alt="Time Letter logo"
+        width={72}
+        height={72}
+        priority
+      />
 
-      <p style={{ fontSize: "20px", marginTop: "20px" }}>
-        神人写信服务
+      <h1 className="mt-8 text-5xl md:text-6xl font-light tracking-tight">
+        Time Letter
+      </h1>
+
+      <p className="mt-5 text-base md:text-lg text-[#6F7471] text-center">
+        Write a letter to your future self.
       </p>
-      <p
-  style={{
-    marginTop: "30px",
-    maxWidth: "600px",
-    textAlign: "center",
-    color: "#666",
-    fontStyle: "italic",
-    lineHeight: "1.8",
-  }}
->
-我们总以为未来很远，可当未来到来时，最想见的人往往是过去的自己。
-</p>
-      {email ? (
-        <>
-          <p style={{ marginTop: "20px", color: "#666" }}>
-            当前登录：{email}
-          </p>
 
-          <div style={{ marginTop: "30px", display: "flex", gap: "15px" }}>
-            <Link href="/write">
-              <button style={{ padding: "12px 24px", fontSize: "18px", cursor: "pointer" }}>
-                写新信
-              </button>
-            </Link>
+      <Link
+        href="/write"
+        className="mt-10 rounded-full bg-[#D9F1EE] px-8 py-3 text-base font-medium text-[#2F3432] transition hover:bg-[#C7E8E3]"
+      >
+        Start Writing
+      </Link>
 
-            <Link href="/letters">
-              <button style={{ padding: "12px 24px", fontSize: "18px", cursor: "pointer" }}>
-                我的信箱
-              </button>
-            </Link>
-
-            <button
-              onClick={handleLogout}
-              style={{ padding: "12px 24px", fontSize: "18px", cursor: "pointer" }}
-            >
-              退出登录
-            </button>
-          </div>
-        </>
-      ) : (
-        <div style={{ marginTop: "30px", display: "flex", gap: "15px" }}>
-          <Link href="/login">
-            <button style={{ padding: "12px 24px", fontSize: "18px", cursor: "pointer" }}>
-              登录
-            </button>
-          </Link>
-
-          <Link href="/register">
-            <button style={{ padding: "12px 24px", fontSize: "18px", cursor: "pointer" }}>
-              注册
-            </button>
-          </Link>
-        </div>
-      )}
+      <p className="mt-6 text-sm text-[#6F7471]">
+        Already have an account?{" "}
+        <Link href="/login" className="underline underline-offset-4">
+          Log in
+        </Link>
+      </p>
     </main>
   );
 }

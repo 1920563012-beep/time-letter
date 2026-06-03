@@ -1,8 +1,9 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
-import { supabase } from "../../../../lib/supabase";
+import Image from "next/image";
 import Link from "next/link";
+import { use, useEffect, useMemo, useState } from "react";
+import { supabase } from "../../../../lib/supabase";
 
 export default function EditLetterPage({
   params,
@@ -17,8 +18,21 @@ export default function EditLetterPage({
   const [imageUrl, setImageUrl] = useState("");
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
 
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const newImagePreviewUrl = useMemo(() => {
+    if (!newImageFile) return "";
+    return URL.createObjectURL(newImageFile);
+  }, [newImageFile]);
+
   useEffect(() => {
     async function loadLetter() {
+      setLoading(true);
+      setErrorMessage("");
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -35,18 +49,28 @@ export default function EditLetterPage({
         .single();
 
       if (error) {
-        console.error(error);
+        setErrorMessage("信件加载失败，请稍后重试。");
+        setLoading(false);
         return;
       }
 
-      setTitle(data.title);
-      setContent(data.content);
-      setOpenDate(data.open_date);
+      setTitle(data.title || "");
+      setContent(data.content || "");
+      setOpenDate(data.open_date || "");
       setImageUrl(data.image_url || "");
+      setLoading(false);
     }
 
     loadLetter();
   }, [id]);
+
+  useEffect(() => {
+    return () => {
+      if (newImagePreviewUrl) {
+        URL.revokeObjectURL(newImagePreviewUrl);
+      }
+    };
+  }, [newImagePreviewUrl]);
 
   async function deleteStorageImage(url: string) {
     const filePath = url.split("/letter-images/")[1];
@@ -58,13 +82,18 @@ export default function EditLetterPage({
       .remove([filePath]);
 
     if (error) {
-      console.error(error);
       throw error;
     }
   }
 
   async function handleDeleteImage() {
+    setErrorMessage("");
+    setSuccessMessage("");
+
     if (!imageUrl) return;
+
+    const confirmed = window.confirm("确定要删除当前图片吗？");
+    if (!confirmed) return;
 
     try {
       await deleteStorageImage(imageUrl);
@@ -77,40 +106,69 @@ export default function EditLetterPage({
         .eq("id", id);
 
       if (error) {
-        console.error(error);
-        alert("删除图片记录失败");
+        setErrorMessage("图片记录删除失败，请稍后重试。");
         return;
       }
 
       setImageUrl("");
       setNewImageFile(null);
-      alert("图片已删除");
+      setSuccessMessage("图片已删除。");
     } catch {
-      alert("删除图片文件失败");
+      setErrorMessage("图片文件删除失败，请稍后重试。");
     }
   }
 
   async function handleUpdate() {
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    if (!title.trim()) {
+      setErrorMessage("请填写信件标题。");
+      return;
+    }
+
+    if (!content.trim()) {
+      setErrorMessage("请填写信件内容。");
+      return;
+    }
+
+    if (!openDate) {
+      setErrorMessage("请选择开启日期。");
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const selectedDate = new Date(openDate);
+
+    if (selectedDate < today) {
+      setErrorMessage("开启日期不能早于今天。");
+      return;
+    }
+
+    setSaving(true);
+
     let finalImageUrl = imageUrl;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      window.location.href = "/login";
+      return;
+    }
 
     if (newImageFile) {
       if (imageUrl) {
         try {
           await deleteStorageImage(imageUrl);
         } catch {
-          alert("旧图片删除失败");
+          setSaving(false);
+          setErrorMessage("旧图片删除失败，请稍后重试。");
           return;
         }
-      }
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        alert("请先登录");
-        window.location.href = "/login";
-        return;
       }
 
       const fileExt = newImageFile.name.split(".").pop();
@@ -121,8 +179,8 @@ export default function EditLetterPage({
         .upload(fileName, newImageFile);
 
       if (uploadError) {
-        console.error(uploadError);
-        alert("新图片上传失败");
+        setSaving(false);
+        setErrorMessage("新图片上传失败，请稍后重试。");
         return;
       }
 
@@ -136,164 +194,183 @@ export default function EditLetterPage({
     const { error } = await supabase
       .from("letters")
       .update({
-        title,
-        content,
+        title: title.trim(),
+        content: content.trim(),
         open_date: openDate,
         image_url: finalImageUrl || null,
       })
       .eq("id", id);
 
+    setSaving(false);
+
     if (error) {
-      console.error(error);
-      alert("更新失败");
+      setErrorMessage("更新失败，请稍后重试。");
       return;
     }
 
-    alert("更新成功");
-    window.location.href = "/letters";
+    setSuccessMessage("修改已保存。");
+
+    setTimeout(() => {
+      window.location.href = "/letters";
+    }, 900);
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: "60px",
-        background: "#f5f5f5",
-      }}
-    >
-      <Link href="/letters">
-        <button
-          style={{
-            marginBottom: "20px",
-            padding: "8px 16px",
-            cursor: "pointer",
-          }}
-        >
-          返回信箱
-        </button>
-      </Link>
-
-      <h1>编辑信件</h1>
-
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "20px",
-          maxWidth: "600px",
-          marginTop: "30px",
-        }}
-      >
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          style={{
-            padding: "12px",
-            fontSize: "16px",
-          }}
-        />
-
-        <textarea
-          rows={10}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          style={{
-            padding: "12px",
-            fontSize: "16px",
-          }}
-        />
-
-        <input
-          type="date"
-          value={openDate}
-          onChange={(e) => setOpenDate(e.target.value)}
-          style={{
-            padding: "12px",
-            fontSize: "16px",
-          }}
-        />
-
-        {imageUrl && (
-          <div>
-            <p>当前图片：</p>
-
-            <img
-              src={imageUrl}
-              alt="当前信件图片"
-              style={{
-                maxWidth: "100%",
-                borderRadius: "12px",
-                marginBottom: "10px",
-              }}
+    <main className="min-h-screen bg-[#FAF8F3] text-[#2F3432] px-6 py-8">
+      <div className="mx-auto max-w-3xl">
+        <header className="flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-3">
+            <Image
+              src="/logo/leaf.svg"
+              alt="Time Letter logo"
+              width={36}
+              height={36}
+              priority
             />
+            <span className="text-lg font-semibold">Time Letter</span>
+          </Link>
 
-            <br />
+          <Link
+            href="/letters"
+            className="rounded-full border border-[#E0D8CE] bg-white/60 px-4 py-2 text-sm text-[#6F7471] transition hover:bg-white"
+          >
+            返回信箱
+          </Link>
+        </header>
 
-            <button
-              onClick={handleDeleteImage}
-              style={{
-                padding: "8px 16px",
-                cursor: "pointer",
-              }}
-            >
-              删除当前图片
-            </button>
-          </div>
+        <section className="mt-14">
+          <h1 className="text-4xl font-semibold tracking-tight">编辑信件</h1>
+          <p className="mt-3 text-sm text-[#6F7471]">
+            修改这封还未开启的信。保存后，它会继续等待未来的日期。
+          </p>
+        </section>
+
+        {loading && (
+          <p className="mt-12 text-sm text-[#6F7471]">信件加载中...</p>
         )}
 
-        <div>
-          <p>替换图片：</p>
+        {!loading && (
+          <section className="mt-8 rounded-3xl border border-[#E8E1D8] bg-white/70 p-6 shadow-sm md:p-8">
+            <div className="flex flex-col gap-5">
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium">信件标题</span>
+                <input
+                  value={title}
+                  maxLength={100}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="rounded-2xl border border-[#E0D8CE] bg-[#FFFCF7] px-4 py-3 text-base outline-none transition focus:border-[#9BCFC8]"
+                />
+                <span className="text-xs text-[#8A8F8C]">
+                  {title.length}/100
+                </span>
+              </label>
 
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              if (e.target.files && e.target.files[0]) {
-                setNewImageFile(e.target.files[0]);
-              }
-            }}
-          />
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium">开启日期</span>
+                <input
+                  type="date"
+                  value={openDate}
+                  onChange={(e) => setOpenDate(e.target.value)}
+                  className="rounded-2xl border border-[#E0D8CE] bg-[#FFFCF7] px-4 py-3 text-base outline-none transition focus:border-[#9BCFC8]"
+                />
+              </label>
 
-          {newImageFile && (
-            <div style={{ marginTop: "10px" }}>
-              <p>已选择：{newImageFile.name}</p>
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium">信件内容</span>
+                <textarea
+                  rows={12}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  className="resize-none rounded-2xl border border-[#E0D8CE] bg-[#FFFCF7] px-4 py-3 text-base leading-7 outline-none transition focus:border-[#9BCFC8]"
+                />
+                <span className="text-xs text-[#8A8F8C]">
+                  {content.length} characters
+                </span>
+              </label>
 
-              <img
-                src={URL.createObjectURL(newImageFile)}
-                alt="新图片预览"
-                style={{
-                  maxWidth: "300px",
-                  borderRadius: "12px",
-                  marginTop: "10px",
-                }}
-              />
+              {imageUrl && (
+                <div className="rounded-2xl border border-[#E8E1D8] bg-[#FFFCF7] p-4">
+                  <p className="text-sm font-medium">当前图片</p>
 
-              <br />
+                  <img
+                    src={imageUrl}
+                    alt="当前信件图片"
+                    className="mt-4 max-h-[420px] w-full rounded-2xl border border-[#E8E1D8] object-cover"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleDeleteImage}
+                    className="mt-4 rounded-full border border-[#E0D8CE] bg-white/60 px-4 py-2 text-sm text-[#8A5A4A] transition hover:bg-white"
+                  >
+                    删除当前图片
+                  </button>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3">
+                <span className="text-sm font-medium">
+                  {imageUrl ? "替换图片" : "添加图片"}
+                </span>
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setNewImageFile(e.target.files[0]);
+                    }
+                  }}
+                  className="block w-full text-sm text-[#6F7471] file:mr-4 file:rounded-full file:border-0 file:bg-[#D9F1EE] file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#2F3432] hover:file:bg-[#C7E8E3]"
+                />
+
+                {newImageFile && (
+                  <div className="rounded-2xl border border-[#E8E1D8] bg-[#FFFCF7] p-4">
+                    <p className="text-sm text-[#6F7471]">
+                      已选择：{newImageFile.name}
+                    </p>
+
+                    {newImagePreviewUrl && (
+                      <img
+                        src={newImagePreviewUrl}
+                        alt="新图片预览"
+                        className="mt-4 max-w-xs rounded-2xl border border-[#E8E1D8]"
+                      />
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setNewImageFile(null)}
+                      className="mt-4 rounded-full border border-[#E0D8CE] bg-white/60 px-4 py-2 text-sm text-[#8A5A4A] transition hover:bg-white"
+                    >
+                      取消选择
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {errorMessage && (
+                <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {errorMessage}
+                </p>
+              )}
+
+              {successMessage && (
+                <p className="rounded-2xl bg-[#EAF7F4] px-4 py-3 text-sm text-[#2F6F66]">
+                  {successMessage}
+                </p>
+              )}
 
               <button
-                onClick={() => setNewImageFile(null)}
-                style={{
-                  marginTop: "10px",
-                  padding: "8px 16px",
-                  cursor: "pointer",
-                }}
+                onClick={handleUpdate}
+                disabled={saving}
+                className="mt-2 rounded-full bg-[#D9F1EE] px-6 py-3 text-base font-medium text-[#2F3432] transition hover:bg-[#C7E8E3] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                取消选择
+                {saving ? "保存中..." : "保存修改"}
               </button>
             </div>
-          )}
-        </div>
-
-        <button
-          onClick={handleUpdate}
-          style={{
-            padding: "12px",
-            fontSize: "18px",
-            cursor: "pointer",
-          }}
-        >
-          保存修改
-        </button>
+          </section>
+        )}
       </div>
     </main>
   );
